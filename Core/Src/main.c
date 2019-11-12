@@ -29,26 +29,21 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
+typedef enum _ButtonState_enum {
 	BUTTON_DOWN = GPIO_PIN_RESET, BUTTON_UP = GPIO_PIN_SET,
-} _ButtonState_enum;
+} ButtonState;
 
-typedef _ButtonState_enum ButtonState;
-
-typedef enum {
+typedef enum _ButtonEvent_enum {
 	EVENT_NONE, EVENT_PRESSED, EVENT_RELEASED,
-} _ButtonEvent_enum;
-typedef _ButtonEvent_enum ButtonEvent;
+} ButtonEvent;
 
-typedef enum {
+typedef enum _BulbColor_enum {
 	COLOR_GREEN = GPIO_PIN_13,
 	COLOR_YELLOW = GPIO_PIN_14,
 	COLOR_RED = GPIO_PIN_15,
-} _BulbColor_enum;
+} BulbColor;
 
-typedef _BulbColor_enum BulbColor;
-
-typedef enum {
+typedef enum _LightState_enum {
 	LIGHT_ON = GPIO_PIN_SET, LIGHT_OFF = GPIO_PIN_RESET,
 } LightState;
 
