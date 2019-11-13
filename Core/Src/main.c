@@ -116,6 +116,24 @@ void turn_light_off(BulbColor color) {
 uint32_t clock_now_millis() {
 	return HAL_GetTick();
 }
+
+HAL_StatusTypeDef read_char(uint8_t *received_char) {
+	return HAL_UART_Receive(&huart1, received_char, sizeof(*received_char),
+	UINT32_MAX);
+}
+
+void print_char(uint8_t symbol) {
+	HAL_UART_Transmit(&huart1, &symbol, sizeof(symbol), UINT32_MAX);
+}
+
+void toggle_interrupts() {
+	// TODO: Check interrupts and turn them on/off
+}
+
+void blink_as_morse(char symbol) {
+	// TODO: Encode symbol and blink bulbs with Morse
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -153,84 +171,26 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		duration_t signal_durations[MAX_NUM_SIGNALS];
+		uint8_t received_char;
 
-		ButtonState prev_button_state = read_button_state();
-		size_t num_signals = 0;
-		duration_t cur_duration_millis = 0;
+		HAL_StatusTypeDef read_result = read_char(&received_char);
 
-		set_light(COLOR_GREEN, LIGHT_ON);
-
-		while (true) {
-			HAL_Delay(POLL_INTERVAL_MILLIS);
-
-			if (cur_duration_millis < UINT32_MAX - POLL_INTERVAL_MILLIS) {
-				cur_duration_millis += POLL_INTERVAL_MILLIS;
-			}
-
-			ButtonState cur_button_state = read_button_state();
-			ButtonEvent button_event = determine_button_event(prev_button_state,
-					cur_button_state);
-
-			switch (button_event) {
-			case EVENT_PRESSED:
-				cur_duration_millis = 0;
-				break;
-
-			case EVENT_RELEASED:
-				signal_durations[num_signals] = cur_duration_millis;
-				num_signals++;
-
-				BulbColor color;
-				if (cur_duration_millis < DASH_DURATION) {
-					color = COLOR_YELLOW;
-				} else {
-					color = COLOR_RED;
-				}
-
-				set_light(color, LIGHT_ON);
-				HAL_Delay(100);
-				set_light(color, LIGHT_OFF);
-
-				break;
-
-			case EVENT_NONE:
-				break;
-			}
-
-			if (cur_button_state == BUTTON_UP && num_signals > 0
-					&& cur_duration_millis >= MAX_PAUSE_MILLIS) {
-				break;
-			}
-
-			if (num_signals >= MAX_NUM_SIGNALS) {
-				break;
-			}
-
-			prev_button_state = cur_button_state;
-		}
-
-		set_light(COLOR_GREEN, LIGHT_OFF);
-		set_light(COLOR_RED, LIGHT_ON);
-		HAL_Delay(DASH_DURATION);
-
-		for (int signal_index = 0; signal_index < num_signals; ++signal_index) {
-			duration_t signal_duration = signal_durations[signal_index];
-
-			set_light(COLOR_GREEN, LIGHT_ON);
-			if (signal_duration < DASH_DURATION) {
-				HAL_Delay(DOT_DURATION);
+		switch (read_result) {
+		case HAL_OK:
+			print_char(received_char);
+			if (received_char == '+') {
+				toggle_interrupts();
 			} else {
-				HAL_Delay(DASH_DURATION);
+				print_char(received_char);
+				blink_as_morse(received_char);
 			}
+			break;
 
-			set_light(COLOR_GREEN, LIGHT_OFF);
-			HAL_Delay(DASH_DURATION);
+		case HAL_ERROR:
+		case HAL_BUSY:
+		case HAL_TIMEOUT:
+			break;
 		}
-
-		set_light(COLOR_GREEN, LIGHT_ON);
-		set_light(COLOR_RED, LIGHT_OFF);
-		HAL_Delay(DASH_DURATION);
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
