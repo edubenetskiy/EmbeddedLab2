@@ -268,7 +268,7 @@ void blink_morse_string(uint8_t *morse_code) {
 }
 
 void blink_as_morse(uint8_t ascii_character) {
-	uint8_t* morse_code = encode_morse(ascii_character);
+	uint8_t *morse_code = encode_morse(ascii_character);
 	blink_morse_string(morse_code);
 }
 
