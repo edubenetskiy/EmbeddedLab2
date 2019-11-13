@@ -144,6 +144,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 ButtonState read_button_state();
+void delay(duration_t duration_millis);
 void set_light(BulbColor color, LightState state);
 void turn_light_on(BulbColor color);
 void turn_light_off(BulbColor color);
@@ -151,6 +152,7 @@ uint32_t get_instant_millis();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
+
 /* USER CODE BEGIN 0 */
 ButtonState read_button_state() {
 	return HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_15);
@@ -256,9 +258,13 @@ void blink_morse_codepoint(uint8_t morse_codepoint) {
 	}
 
 	turn_light_on(COLOR_GREEN);
-	HAL_Delay(letter_duration);
+	delay(letter_duration);
 	turn_light_off(COLOR_GREEN);
-	HAL_Delay(PAUSE_BETWEEN_LETTERS_MILLIS);
+	delay(PAUSE_BETWEEN_LETTERS_MILLIS);
+}
+
+void delay(duration_t duration_millis) {
+	HAL_Delay(duration_millis);
 }
 
 void blink_morse_string(uint8_t *morse_code) {
