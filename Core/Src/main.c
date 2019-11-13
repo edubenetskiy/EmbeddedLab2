@@ -183,8 +183,14 @@ uint32_t clock_now_millis() {
 }
 
 HAL_StatusTypeDef read_char(uint8_t *received_char) {
-	return HAL_UART_Receive(&huart1, received_char, sizeof(*received_char),
-	UINT32_MAX);
+	const size_t read_size = sizeof(*received_char);
+
+	if (interrupts_enabled) {
+		return HAL_UART_Receive_IT(&huart1, &*received_char, read_size);
+	} else {
+		uint32_t timeout = UINT32_MAX;
+		return HAL_UART_Receive(&huart1, &*received_char, read_size, timeout);
+	}
 }
 
 void print_char(uint8_t symbol) {
