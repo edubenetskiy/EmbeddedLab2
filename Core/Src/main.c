@@ -325,7 +325,6 @@ int main(void) {
 			if (received_char == '+') {
 				toggle_interrupts();
 			} else {
-				print_char(received_char);
 				blink_as_morse(received_char);
 			}
 			break;
