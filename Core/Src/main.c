@@ -67,7 +67,7 @@ typedef struct code_chart_entry {
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
 const size_t MAX_NUM_SIGNALS = 64;
@@ -79,61 +79,27 @@ const duration_t PAUSE_BETWEEN_LETTERS_MILLIS = 300;
 
 const duration_t MAX_PAUSE_MILLIS = 3000;
 
-const code_chart_entry_t MORSE_CODE_CHART[] = {
-	{'A', ".-"},
-	{'B', "-..."},
-	{'C', "-.-."},
-	{'D', "-.."},
-	{'E', "."},
-	{'F', "..-."},
-	{'G', "--."},
-	{'H', "...."},
-	{'I', ".."},
-	{'J', ".---"},
-	{'K', "-.-"},
-	{'L', ".-.."},
-	{'M', "--"},
-	{'N', "-."},
-	{'O', "---"},
-	{'P', ".--."},
-	{'Q', "--.-"},
-	{'R', ".-."},
-	{'S', "..."},
-	{'T', "-"},
-	{'U', "..-"},
-	{'V', "...-"},
-	{'W', ".--"},
-	{'X', "-..-"},
-	{'Y', "-.--"},
-	{'Z', "--.."},
-	{'.', ".-.-.-"},
-	{',', "--..--"},
-	{'?', "..--.."},
-	{'-', "-....-"},
-	{'=', "-...-"},
-	{':', "---..."},
-	{';', "-.-.-."},
-	{'(', "-.--."},
-	{')', "-.--.-"},
-	{'/', "-..-."},
-	{'"', ".-..-."},
-	{'$', "...-.-"},
-	{'\'', ".----."},
-	{'_', "..--.-"},
-	{'+', ".-.-."},
-	{'@', ".--.-."},
-	{'0', "-----"},
-	{'1', ".----"},
-	{'2', "..---"},
-	{'3', "...--"},
-	{'4', "....-"},
-	{'5', "....."},
-	{'6', "-...."},
-	{'7', "--..."},
-	{'8', "---.."},
-	{'9', "----."},
-	{'\0', ""}, // end of array marker
-};
+typedef enum morse_codepoint {
+	DOT = '.',
+	DASH = '-',
+} morse_codepoint_t;
+
+const code_chart_entry_t MORSE_CODE_CHART[] = { { 'A', ".-" }, { 'B', "-..." },
+		{ 'C', "-.-." }, { 'D', "-.." }, { 'E', "." }, { 'F', "..-." }, { 'G',
+				"--." }, { 'H', "...." }, { 'I', ".." }, { 'J', ".---" }, { 'K',
+				"-.-" }, { 'L', ".-.." }, { 'M', "--" }, { 'N', "-." }, { 'O',
+				"---" }, { 'P', ".--." }, { 'Q', "--.-" }, { 'R', ".-." }, {
+				'S', "..." }, { 'T', "-" }, { 'U', "..-" }, { 'V', "...-" }, {
+				'W', ".--" }, { 'X', "-..-" }, { 'Y', "-.--" }, { 'Z', "--.." },
+		{ '.', ".-.-.-" }, { ',', "--..--" }, { '?', "..--.." },
+		{ '-', "-....-" }, { '=', "-...-" }, { ':', "---..." },
+		{ ';', "-.-.-." }, { '(', "-.--." }, { ')', "-.--.-" },
+		{ '/', "-..-." }, { '"', ".-..-." }, { '$', "...-.-" },
+		{ '\'', ".----." }, { '_', "..--.-" }, { '+', ".-.-." },
+		{ '@', ".--.-." }, { '0', "-----" }, { '1', ".----" }, { '2', "..---" },
+		{ '3', "...--" }, { '4', "....-" }, { '5', "....." }, { '6', "-...." },
+		{ '7', "--..." }, { '8', "---.." }, { '9', "----." }, { '\0', "" }, // end of array marker
+		};
 
 bool interrupts_enabled = false;
 /* USER CODE END PV */
@@ -141,7 +107,7 @@ bool interrupts_enabled = false;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART1_UART_Init(void);
+static void MX_USART6_UART_Init(void);
 /* USER CODE BEGIN PFP */
 ButtonState read_button_state();
 void delay(duration_t duration_millis);
@@ -152,7 +118,6 @@ uint32_t get_instant_millis();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
-
 /* USER CODE BEGIN 0 */
 ButtonState read_button_state() {
 	return HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_15);
@@ -166,6 +131,18 @@ ButtonEvent determine_button_event(ButtonState oldState, ButtonState newState) {
 	} else {
 		return EVENT_NONE;
 	}
+}
+
+void handle_button() {
+	uint8_t received_character;
+	decode_button_presses_from_morse(&received_character);
+	blink_as_morse(received_character);
+	print_char(received_character);
+}
+
+void decode_button_presses_from_morse(uint8_t *received_character) {
+	duration_t timeout = 1;
+	// todo
 }
 
 void set_light(BulbColor color, LightState state) {
@@ -188,10 +165,10 @@ HAL_StatusTypeDef read_char(uint8_t *received_char) {
 	const size_t read_size = sizeof(*received_char);
 
 	if (interrupts_enabled) {
-		return HAL_UART_Receive_IT(&huart1, &*received_char, read_size);
+		return HAL_UART_Receive_IT(&huart6, &*received_char, read_size);
 	} else {
-		uint32_t timeout = UINT32_MAX;
-		return HAL_UART_Receive(&huart1, &*received_char, read_size, timeout);
+		uint32_t timeout = 50;
+		return HAL_UART_Receive(&huart6, &*received_char, read_size, timeout);
 	}
 }
 
@@ -199,23 +176,27 @@ void print_char(uint8_t symbol) {
 	const size_t write_size = sizeof(symbol);
 
 	if (interrupts_enabled) {
-		HAL_UART_Transmit_IT(&huart1, &symbol, write_size);
+		HAL_UART_Transmit_IT(&huart6, &symbol, write_size);
 	} else {
-		uint32_t timeout = UINT32_MAX;
-		HAL_UART_Transmit(&huart1, &symbol, write_size, timeout);
+		uint32_t timeout = 50;
+		HAL_UART_Transmit(&huart6, &symbol, write_size, timeout);
 	}
 }
 
 void disable_interrupts() {
-	__disable_irq();
-	HAL_NVIC_DisableIRQ(USART1_IRQn);
+//	__disable_irq();
+	HAL_NVIC_DisableIRQ(USART6_IRQn);
 	interrupts_enabled = false;
+	char* message = "\nInterrupts disabled.";
+	HAL_UART_Transmit_IT(&huart6, message, strlen(message));
 }
 
 void enable_interrupts() {
-	__enable_irq();
-	HAL_NVIC_EnableIRQ(USART1_IRQn);
+//	__enable_irq();
+	HAL_NVIC_EnableIRQ(USART6_IRQn);
 	interrupts_enabled = true;
+	char* message = "\nInterrupts enabled.";
+	HAL_UART_Transmit_IT(&huart6, message, strlen(message));
 }
 
 void toggle_interrupts() {
@@ -224,6 +205,7 @@ void toggle_interrupts() {
 	} else {
 		enable_interrupts();
 	}
+	set_light(COLOR_YELLOW, interrupts_enabled ? LIGHT_ON : LIGHT_OFF);
 }
 
 uint8_t decode_morse(uint8_t *morse_string) {
@@ -253,7 +235,7 @@ uint8_t* encode_morse(uint8_t ascii_character) {
 }
 
 void blink_morse_codepoint(uint8_t morse_codepoint) {
-	size_t letter_duration = 0;
+	size_t letter_duration = MAX_PAUSE_MILLIS;
 
 	switch (morse_codepoint) {
 	case '.':
@@ -291,41 +273,43 @@ void blink_as_morse(uint8_t ascii_character) {
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
-int main(void) {
-	/* USER CODE BEGIN 1 */
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
 
-	/* USER CODE END 1 */
+  /* USER CODE END 1 */
+  
 
-	/* MCU Configuration--------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* Configure the system clock */
-	SystemClock_Config();
+  /* Configure the system clock */
+  SystemClock_Config();
 
-	/* USER CODE BEGIN SysInit */
+  /* USER CODE BEGIN SysInit */
 
-	/* USER CODE END SysInit */
+  /* USER CODE END SysInit */
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_USART1_UART_Init();
-	/* USER CODE BEGIN 2 */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART6_UART_Init();
+  /* USER CODE BEGIN 2 */
 	disable_interrupts();
-	/* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
 	while (1) {
-		uint8_t received_char;
+		uint8_t received_char = '\0';
 
 		HAL_StatusTypeDef read_result = read_char(&received_char);
 
@@ -344,110 +328,117 @@ int main(void) {
 		case HAL_TIMEOUT:
 			break;
 		}
-		/* USER CODE END WHILE */
 
-		/* USER CODE BEGIN 3 */
+//		handle_button();
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
 	}
-	/* USER CODE END 3 */
+  /* USER CODE END 3 */
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
-void SystemClock_Config(void) {
-	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
-	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-	/** Configure the main internal regulator output voltage
-	 */
-	__HAL_RCC_PWR_CLK_ENABLE();
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-	/** Initializes the CPU, AHB and APB busses clocks
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-		Error_Handler();
-	}
-	/** Initializes the CPU, AHB and APB busses clocks
-	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  /** Configure the main internal regulator output voltage 
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  /** Initializes the CPU, AHB and APB busses clocks 
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Initializes the CPU, AHB and APB busses clocks 
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK) {
-		Error_Handler();
-	}
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
- * @brief USART1 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_USART1_UART_Init(void) {
+  * @brief USART6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART6_UART_Init(void)
+{
 
-	/* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN USART6_Init 0 */
 
-	/* USER CODE END USART1_Init 0 */
+  /* USER CODE END USART6_Init 0 */
 
-	/* USER CODE BEGIN USART1_Init 1 */
+  /* USER CODE BEGIN USART6_Init 1 */
 
-	/* USER CODE END USART1_Init 1 */
-	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 115200;
-	huart1.Init.WordLength = UART_WORDLENGTH_8B;
-	huart1.Init.StopBits = UART_STOPBITS_1;
-	huart1.Init.Parity = UART_PARITY_NONE;
-	huart1.Init.Mode = UART_MODE_TX_RX;
-	huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-	if (HAL_UART_Init(&huart1) != HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE END USART6_Init 1 */
+  huart6.Instance = USART6;
+  huart6.Init.BaudRate = 115200;
+  huart6.Init.WordLength = UART_WORDLENGTH_8B;
+  huart6.Init.StopBits = UART_STOPBITS_1;
+  huart6.Init.Parity = UART_PARITY_NONE;
+  huart6.Init.Mode = UART_MODE_TX_RX;
+  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART6_Init 2 */
 
-	/* USER CODE END USART1_Init 2 */
+  /* USER CODE END USART6_Init 2 */
 
 }
 
 /**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
-static void MX_GPIO_Init(void) {
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOH_CLK_ENABLE();
-	__HAL_RCC_GPIOD_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15,
-			GPIO_PIN_RESET);
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
 
-	/*Configure GPIO pin : PC15 */
-	GPIO_InitStruct.Pin = GPIO_PIN_15;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  /*Configure GPIO pin : PC15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : PD13 PD14 PD15 */
-	GPIO_InitStruct.Pin = GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  /*Configure GPIO pins : PD13 PD14 PD15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 }
 
@@ -456,14 +447,15 @@ static void MX_GPIO_Init(void) {
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void) {
-	/* USER CODE BEGIN Error_Handler_Debug */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 
-	/* USER CODE END Error_Handler_Debug */
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
