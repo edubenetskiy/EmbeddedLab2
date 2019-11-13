@@ -73,9 +73,9 @@ UART_HandleTypeDef huart1;
 const size_t MAX_NUM_SIGNALS = 64;
 const duration_t POLL_INTERVAL_MILLIS = 5;
 
-const duration_t DOT_DURATION = 200;
-const duration_t DASH_DURATION = 600;
-const duration_t PAUSE_BETWEEN_LETTERS = 300;
+const duration_t DOT_DURATION_MILLIS = 200;
+const duration_t DASH_DURATION_MILLIS = 600;
+const duration_t PAUSE_BETWEEN_LETTERS_MILLIS = 300;
 
 const duration_t MAX_PAUSE_MILLIS = 3000;
 
@@ -245,10 +245,10 @@ void blink_morse_codepoint(uint8_t morse_codepoint) {
 
 	switch (morse_codepoint) {
 	case '.':
-		letter_duration = DOT_DURATION;
+		letter_duration = DOT_DURATION_MILLIS;
 		break;
 	case '-':
-		letter_duration = DASH_DURATION;
+		letter_duration = DASH_DURATION_MILLIS;
 		break;
 	default:
 		// Unreachable. The alphabet contains nothing but “.” and “-”.
@@ -258,7 +258,7 @@ void blink_morse_codepoint(uint8_t morse_codepoint) {
 	turn_light_on(COLOR_GREEN);
 	HAL_Delay(letter_duration);
 	turn_light_off(COLOR_GREEN);
-	HAL_Delay(PAUSE_BETWEEN_LETTERS);
+	HAL_Delay(PAUSE_BETWEEN_LETTERS_MILLIS);
 }
 
 void blink_morse_string(uint8_t *morse_code) {
