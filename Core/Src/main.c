@@ -194,7 +194,14 @@ HAL_StatusTypeDef read_char(uint8_t *received_char) {
 }
 
 void print_char(uint8_t symbol) {
-	HAL_UART_Transmit(&huart1, &symbol, sizeof(symbol), UINT32_MAX);
+	const size_t write_size = sizeof(symbol);
+
+	if (interrupts_enabled) {
+		HAL_UART_Transmit_IT(&huart1, &symbol, write_size);
+	} else {
+		uint32_t timeout = UINT32_MAX;
+		HAL_UART_Transmit(&huart1, &symbol, write_size, timeout);
+	}
 }
 
 void toggle_interrupts() {
