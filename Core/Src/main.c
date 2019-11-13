@@ -206,13 +206,23 @@ void print_char(uint8_t symbol) {
 	}
 }
 
+void disable_interrupts() {
+	__disable_irq();
+	HAL_NVIC_DisableIRQ(USART1_IRQn);
+	interrupts_enabled = false;
+}
+
+void enable_interrupts() {
+	__enable_irq();
+	HAL_NVIC_EnableIRQ(USART1_IRQn);
+	interrupts_enabled = true;
+}
+
 void toggle_interrupts() {
 	if (interrupts_enabled) {
-		HAL_NVIC_DisableIRQ(USART1_IRQn);
-		interrupts_enabled = false;
+		disable_interrupts();
 	} else {
-		HAL_NVIC_EnableIRQ(USART1_IRQn);
-		interrupts_enabled = true;
+		enable_interrupts();
 	}
 }
 
@@ -309,7 +319,7 @@ int main(void) {
 	MX_GPIO_Init();
 	MX_USART1_UART_Init();
 	/* USER CODE BEGIN 2 */
-
+	disable_interrupts();
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
