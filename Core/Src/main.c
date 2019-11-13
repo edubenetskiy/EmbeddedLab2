@@ -134,6 +134,8 @@ const code_chart_entry_t MORSE_CODE_CHART[] = {
 	{'9', "----."},
 	{'\0', ""}, // end of array marker
 };
+
+bool interrupts_enabled = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -190,7 +192,13 @@ void print_char(uint8_t symbol) {
 }
 
 void toggle_interrupts() {
-	// TODO: Check interrupts and turn them on/off
+	if (interrupts_enabled) {
+		HAL_NVIC_DisableIRQ(USART1_IRQn);
+		interrupts_enabled = false;
+	} else {
+		HAL_NVIC_EnableIRQ(USART1_IRQn);
+		interrupts_enabled = true;
+	}
 }
 
 uint8_t decode_morse(uint8_t *morse_string) {
