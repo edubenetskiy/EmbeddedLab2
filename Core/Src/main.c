@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "stdint.h"
 #include "stdbool.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +50,11 @@ typedef enum _LightState_enum {
 
 typedef uint32_t timestamp_t;
 typedef uint32_t duration_t;
+
+typedef struct code_chart_entry {
+	uint8_t symbol;
+	char *code;
+} code_chart_entry_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -69,8 +75,65 @@ const duration_t POLL_INTERVAL_MILLIS = 5;
 
 const duration_t DOT_DURATION = 200;
 const duration_t DASH_DURATION = 600;
+const duration_t PAUSE_BETWEEN_LETTERS = 300;
 
 const duration_t MAX_PAUSE_MILLIS = 3000;
+
+const code_chart_entry_t MORSE_CODE_CHART[] = {
+	{'A', ".-"},
+	{'B', "-..."},
+	{'C', "-.-."},
+	{'D', "-.."},
+	{'E', "."},
+	{'F', "..-."},
+	{'G', "--."},
+	{'H', "...."},
+	{'I', ".."},
+	{'J', ".---"},
+	{'K', "-.-"},
+	{'L', ".-.."},
+	{'M', "--"},
+	{'N', "-."},
+	{'O', "---"},
+	{'P', ".--."},
+	{'Q', "--.-"},
+	{'R', ".-."},
+	{'S', "..."},
+	{'T', "-"},
+	{'U', "..-"},
+	{'V', "...-"},
+	{'W', ".--"},
+	{'X', "-..-"},
+	{'Y', "-.--"},
+	{'Z', "--.."},
+	{'.', ".-.-.-"},
+	{',', "--..--"},
+	{'?', "..--.."},
+	{'-', "-....-"},
+	{'=', "-...-"},
+	{':', "---..."},
+	{';', "-.-.-."},
+	{'(', "-.--."},
+	{')', "-.--.-"},
+	{'/', "-..-."},
+	{'"', ".-..-."},
+	{'$', "...-.-"},
+	{'\'', ".----."},
+	{'_', "..--.-"},
+	{'+', ".-.-."},
+	{'@', ".--.-."},
+	{'0', "-----"},
+	{'1', ".----"},
+	{'2', "..---"},
+	{'3', "...--"},
+	{'4', "....-"},
+	{'5', "....."},
+	{'6', "-...."},
+	{'7', "--..."},
+	{'8', "---.."},
+	{'9', "----."},
+	{'\0', ""}, // end of array marker
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,8 +193,62 @@ void toggle_interrupts() {
 	// TODO: Check interrupts and turn them on/off
 }
 
-void blink_as_morse(char symbol) {
-	// TODO: Encode symbol and blink bulbs with Morse
+uint8_t decode_morse(uint8_t *morse_string) {
+	for (size_t index = 0; MORSE_CODE_CHART[index].symbol != '\0'; index++) {
+		if (strcmp(MORSE_CODE_CHART[index].code, (char*) morse_string) == 0) {
+			return MORSE_CODE_CHART[index].symbol;
+		}
+	}
+	return '\0';
+}
+
+uint8_t capitalize(uint8_t ascii_character) {
+	if ('a' <= ascii_character && ascii_character <= 'z') {
+		ascii_character += 'X' - 'x';
+	}
+	return ascii_character;
+}
+
+uint8_t* encode_morse(uint8_t ascii_character) {
+	ascii_character = capitalize(ascii_character);
+	for (size_t index = 0; MORSE_CODE_CHART[index].symbol != '\0'; index++) {
+		if (MORSE_CODE_CHART[index].symbol == ascii_character) {
+			return (uint8_t*) MORSE_CODE_CHART[index].code;
+		}
+	}
+	return NULL;
+}
+
+void blink_morse_codepoint(uint8_t morse_codepoint) {
+	size_t letter_duration = 0;
+
+	switch (morse_codepoint) {
+	case '.':
+		letter_duration = DOT_DURATION;
+		break;
+	case '-':
+		letter_duration = DASH_DURATION;
+		break;
+	default:
+		// Unreachable. The alphabet contains nothing but “.” and “-”.
+		Error_Handler();
+	}
+
+	turn_light_on(COLOR_GREEN);
+	HAL_Delay(letter_duration);
+	turn_light_off(COLOR_GREEN);
+	HAL_Delay(PAUSE_BETWEEN_LETTERS);
+}
+
+void blink_morse_string(uint8_t *morse_code) {
+	for (int index = 0; morse_code[index] != '\0'; ++index) {
+		blink_morse_codepoint(morse_code[index]);
+	}
+}
+
+void blink_as_morse(uint8_t ascii_character) {
+	uint8_t* morse_code = encode_morse(ascii_character);
+	blink_morse_string(morse_code);
 }
 
 /* USER CODE END 0 */
